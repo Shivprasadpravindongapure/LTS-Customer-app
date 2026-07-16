@@ -1,0 +1,11 @@
+.vscode/
+.idea/
+.DS_Store
+*.log
+backend/.env
+backend/db_data/
+node_modules/
+dist/
+.expo/
+web-build/
+uploads/
