@@ -39,9 +39,9 @@ export async function requestOtp(req: Request, res: Response, next: NextFunction
     return res.status(200).json({
       message: "OTP sent",
       mobile,
-      // Only ever included outside production, to make local/dev testing possible
-      // without wiring a real SMS provider.
-      ...(process.env.NODE_ENV !== "production" ? { devOtp: otp } : {}),
+      // Demo mode: always return the OTP so testers don't need SMS.
+      // Remove this before production release.
+      devOtp: otp,
     });
   } catch (err) {
     next(err);
