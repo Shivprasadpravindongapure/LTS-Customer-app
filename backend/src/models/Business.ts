@@ -68,8 +68,8 @@ const BusinessSchema = new Schema<IBusiness>(
       pincode: { type: String },
     },
     location: {
-      type: { type: String, enum: ["Point"], default: "Point" },
-      coordinates: { type: [Number], default: undefined },
+      type: { type: String, enum: ["Point"] },
+      coordinates: { type: [Number] },
     },
     photos: { type: [String], default: [] },
     workingHours: { type: [WorkingHoursSchema], default: [] },
