@@ -6,7 +6,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 //   iOS simulator -> http://localhost:4000
 //   Android emulator -> http://10.0.2.2:4000
 //   Physical device -> http://<your-machine-lan-ip>:4000
-export const API_BASE_URL = process.env.EXPO_PUBLIC_API_URL ?? "http://localhost:4000";
+export const API_BASE_URL = process.env.EXPO_PUBLIC_API_URL ?? "https://lts-customer-app.onrender.com";
 
 export const api = axios.create({
   baseURL: `${API_BASE_URL}/api/v1`,
