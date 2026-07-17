@@ -1,5 +1,5 @@
 import React, { useCallback, useState } from "react";
-import { View, Text, FlatList, TextInput, TouchableOpacity, StyleSheet, ActivityIndicator, Alert } from "react-native";
+import { View, Text, FlatList, TextInput, TouchableOpacity, StyleSheet, ActivityIndicator, Alert, RefreshControl } from "react-native";
 import { useFocusEffect } from "@react-navigation/native";
 import { reviewApi } from "../../api/endpoints";
 import { Review } from "../../types";
@@ -9,10 +9,13 @@ export default function ReviewsScreen() {
   const [breakdown, setBreakdown] = useState<Record<number, number>>({});
   const [average, setAverage] = useState(0);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [replyDrafts, setReplyDrafts] = useState<Record<string, string>>({});
 
-  const load = useCallback(async () => {
-    setLoading(true);
+  const load = useCallback(async (showLoader = false) => {
+    if (showLoader) {
+      setLoading(true);
+    }
     try {
       const { data } = await reviewApi.listMine();
       setReviews(data.reviews);
@@ -25,10 +28,24 @@ export default function ReviewsScreen() {
     }
   }, []);
 
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
+    try {
+      const { data } = await reviewApi.listMine();
+      setReviews(data.reviews);
+      setBreakdown(data.breakdown);
+      setAverage(data.average);
+    } catch {
+      // ignore
+    } finally {
+      setRefreshing(false);
+    }
+  }, []);
+
   useFocusEffect(
     useCallback(() => {
-      load();
-    }, [load])
+      load(reviews.length === 0);
+    }, [load, reviews.length])
   );
 
   async function submitReply(id: string) {
@@ -49,8 +66,12 @@ export default function ReviewsScreen() {
         text: "Report",
         style: "destructive",
         onPress: async () => {
-          await reviewApi.flag(id);
-          setReviews((prev) => prev.map((r) => (r._id === id ? { ...r, flagged: true } : r)));
+          try {
+            await reviewApi.flag(id);
+            setReviews((prev) => prev.map((r) => (r._id === id ? { ...r, flagged: true } : r)));
+          } catch {
+            Alert.alert("Error", "Could not report review.");
+          }
         },
       },
     ]);
@@ -69,6 +90,9 @@ export default function ReviewsScreen() {
       contentContainerStyle={{ padding: 16 }}
       data={reviews}
       keyExtractor={(r) => r._id}
+      refreshControl={
+        <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+      }
       ListHeaderComponent={
         <View style={styles.summary}>
           <Text style={styles.avg}>{average.toFixed(1)} ★</Text>

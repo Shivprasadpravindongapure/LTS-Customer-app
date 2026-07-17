@@ -27,4 +27,8 @@ export const env = {
   awsBucket: process.env.AWS_S3_BUCKET ?? "",
 
   clientOrigin: process.env.CLIENT_ORIGIN ?? "*",
+
+  msg91AuthKey: process.env.MSG91_AUTH_KEY ?? "",
+  msg91TemplateId: process.env.MSG91_TEMPLATE_ID ?? "",
 };
+

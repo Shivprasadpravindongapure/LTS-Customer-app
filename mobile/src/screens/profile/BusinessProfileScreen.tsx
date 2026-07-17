@@ -9,6 +9,7 @@ import {
   StyleSheet,
   ActivityIndicator,
   Alert,
+  RefreshControl,
 } from "react-native";
 import { useFocusEffect } from "@react-navigation/native";
 import * as ImagePicker from "expo-image-picker";
@@ -19,12 +20,15 @@ import { Business } from "../../types";
 export default function BusinessProfileScreen() {
   const [business, setBusiness] = useState<Business | null>(null);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [editing, setEditing] = useState(false);
   const [description, setDescription] = useState("");
   const [saving, setSaving] = useState(false);
 
-  const load = useCallback(async () => {
-    setLoading(true);
+  const load = useCallback(async (showLoader = false) => {
+    if (showLoader) {
+      setLoading(true);
+    }
     try {
       const { data } = await businessApi.getMine();
       setBusiness(data.business);
@@ -38,10 +42,23 @@ export default function BusinessProfileScreen() {
     }
   }, []);
 
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
+    try {
+      const { data } = await businessApi.getMine();
+      setBusiness(data.business);
+      setDescription(data.business.description ?? "");
+    } catch {
+      // ignore
+    } finally {
+      setRefreshing(false);
+    }
+  }, []);
+
   useFocusEffect(
     useCallback(() => {
-      load();
-    }, [load])
+      load(business === null);
+    }, [load, business])
   );
 
   async function saveDescription() {
@@ -99,7 +116,12 @@ export default function BusinessProfileScreen() {
   }
 
   return (
-    <ScrollView contentContainerStyle={{ padding: 20 }}>
+    <ScrollView
+      contentContainerStyle={{ padding: 20 }}
+      refreshControl={
+        <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+      }
+    >
       <View style={styles.headerRow}>
         <Text style={styles.name}>{business.name}</Text>
         {business.isVerified ? (

@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useState } from "react";
-import { View, Text, FlatList, TouchableOpacity, StyleSheet, ActivityIndicator, Linking, Alert } from "react-native";
+import { View, Text, FlatList, TouchableOpacity, StyleSheet, ActivityIndicator, Linking, Alert, RefreshControl } from "react-native";
 import { useFocusEffect } from "@react-navigation/native";
 import { io, Socket } from "socket.io-client";
 import { enquiryApi, businessApi } from "../../api/endpoints";
@@ -17,10 +17,13 @@ const STATUS_COLORS: Record<EnquiryStatus, string> = {
 export default function LeadsScreen() {
   const [enquiries, setEnquiries] = useState<Enquiry[]>([]);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [socket, setSocket] = useState<Socket | null>(null);
 
-  const load = useCallback(async () => {
-    setLoading(true);
+  const load = useCallback(async (showLoader = false) => {
+    if (showLoader) {
+      setLoading(true);
+    }
     try {
       const { data } = await enquiryApi.listMine();
       setEnquiries(data.items);
@@ -31,10 +34,22 @@ export default function LeadsScreen() {
     }
   }, []);
 
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
+    try {
+      const { data } = await enquiryApi.listMine();
+      setEnquiries(data.items);
+    } catch {
+      // ignore
+    } finally {
+      setRefreshing(false);
+    }
+  }, []);
+
   useFocusEffect(
     useCallback(() => {
-      load();
-    }, [load])
+      load(enquiries.length === 0);
+    }, [load, enquiries.length])
   );
 
   // Real-time: join this business's socket room so new enquiries push in live.
@@ -81,6 +96,9 @@ export default function LeadsScreen() {
       contentContainerStyle={{ padding: 16 }}
       data={enquiries}
       keyExtractor={(e) => e._id}
+      refreshControl={
+        <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+      }
       ListEmptyComponent={<Text style={styles.empty}>No enquiries yet. New leads will show up here in real time.</Text>}
       renderItem={({ item }) => (
         <View style={styles.card}>

@@ -1,5 +1,5 @@
 import React, { useCallback, useState } from "react";
-import { View, Text, FlatList, TouchableOpacity, StyleSheet, ActivityIndicator, Alert, ScrollView } from "react-native";
+import { View, Text, FlatList, TouchableOpacity, StyleSheet, ActivityIndicator, Alert, ScrollView, RefreshControl } from "react-native";
 import { useFocusEffect } from "@react-navigation/native";
 import { adminApi } from "../../api/endpoints";
 
@@ -9,9 +9,12 @@ export default function AdminScreen() {
   const [flagged, setFlagged] = useState<any[]>([]);
   const [stats, setStats] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
 
-  const load = useCallback(async () => {
-    setLoading(true);
+  const load = useCallback(async (showLoader = false) => {
+    if (showLoader) {
+      setLoading(true);
+    }
     try {
       const [{ data: p }, { data: f }, { data: s }] = await Promise.all([
         adminApi.pendingBusinesses(),
@@ -28,25 +31,55 @@ export default function AdminScreen() {
     }
   }, []);
 
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
+    try {
+      const [{ data: p }, { data: f }, { data: s }] = await Promise.all([
+        adminApi.pendingBusinesses(),
+        adminApi.flaggedReviews(),
+        adminApi.stats(),
+      ]);
+      setPending(p.businesses);
+      setFlagged(f.reviews);
+      setStats(s);
+    } catch {
+      // ignore
+    } finally {
+      setRefreshing(false);
+    }
+  }, []);
+
   useFocusEffect(
     useCallback(() => {
-      load();
-    }, [load])
+      load(pending.length === 0 && flagged.length === 0 && stats === null);
+    }, [load, pending.length, flagged.length, stats])
   );
 
   async function approve(id: string) {
-    await adminApi.approveBusiness(id);
-    setPending((prev) => prev.filter((b) => b._id !== id));
+    try {
+      await adminApi.approveBusiness(id);
+      setPending((prev) => prev.filter((b) => b._id !== id));
+    } catch (err: any) {
+      Alert.alert("Error", err?.response?.data?.message ?? "Could not approve business.");
+    }
   }
 
   async function reject(id: string) {
-    await adminApi.rejectBusiness(id);
-    setPending((prev) => prev.filter((b) => b._id !== id));
+    try {
+      await adminApi.rejectBusiness(id);
+      setPending((prev) => prev.filter((b) => b._id !== id));
+    } catch (err: any) {
+      Alert.alert("Error", err?.response?.data?.message ?? "Could not reject business.");
+    }
   }
 
   async function resolveReview(id: string, action: "dismiss" | "remove") {
-    await adminApi.resolveReview(id, action);
-    setFlagged((prev) => prev.filter((r) => r._id !== id));
+    try {
+      await adminApi.resolveReview(id, action);
+      setFlagged((prev) => prev.filter((r) => r._id !== id));
+    } catch (err: any) {
+      Alert.alert("Error", err?.response?.data?.message ?? "Could not resolve review.");
+    }
   }
 
   if (loading) {
@@ -68,7 +101,12 @@ export default function AdminScreen() {
       </View>
 
       {tab === "stats" && stats && (
-        <ScrollView contentContainerStyle={{ padding: 16 }}>
+        <ScrollView
+          contentContainerStyle={{ padding: 16 }}
+          refreshControl={
+            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+          }
+        >
           {Object.entries({
             "Total businesses": stats.totalBusinesses,
             Verified: stats.verifiedBusinesses,
@@ -90,6 +128,9 @@ export default function AdminScreen() {
           contentContainerStyle={{ padding: 16 }}
           data={pending}
           keyExtractor={(b) => b._id}
+          refreshControl={
+            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+          }
           ListEmptyComponent={<Text style={styles.empty}>No listings awaiting review.</Text>}
           renderItem={({ item }) => (
             <View style={styles.card}>
@@ -115,6 +156,9 @@ export default function AdminScreen() {
           contentContainerStyle={{ padding: 16 }}
           data={flagged}
           keyExtractor={(r) => r._id}
+          refreshControl={
+            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+          }
           ListEmptyComponent={<Text style={styles.empty}>No flagged reviews.</Text>}
           renderItem={({ item }) => (
             <View style={styles.card}>
